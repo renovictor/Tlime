@@ -5,7 +5,7 @@ It is designed for engineering education and quick impedance-matching studies wi
 
 ## Version
 
-- Current version: **1.0.0**
+- Current version: **2026.11.1**
 - Version source: `version.py`
 
 ## Main functions

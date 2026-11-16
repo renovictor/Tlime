@@ -17,15 +17,18 @@ class AppVersion:
 
 APP_NAME = "TLIME"
 APP_TITLE = "Transmission Line Impedance Explorer"
-COMPANY_NAME = "ASM Company"
+COMPANY_NAME = "ASM International"
 DEPARTMENT_NAME = "Engineering Department"
-AUTHOR = "ASM Engineering Team"
-CONTACT = "support@asm.example.com"
+AUTHOR = "Victor Chingping Huang"
+CONTACT = "victor.huang@asm.com"
 
-CURRENT_VERSION = AppVersion(1, 0, 0)
+CURRENT_VERSION = AppVersion(2026, 11, 1)
 __version__ = str(CURRENT_VERSION)
 
 VERSION_HISTORY: tuple[tuple[str, str], ...] = (
+    (
+        "2026.11.1",
+        "UI refresh: exit button, improved standing-wave readability, phasor view, and manual 3D rotation.",
+    ),
     ("1.0.0", "Initial PySide6 release with splash preloading and crash logging."),
 )
-

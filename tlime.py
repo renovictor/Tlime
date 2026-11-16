@@ -480,6 +480,183 @@ def build_tlime_window_class(np, FigureCanvasQTAgg, Figure):
             self.figure.patch.set_facecolor("#171c41")
             self.draw_idle()
 
+    class StandingWaveVoltageCanvas(MplCanvas):
+        def __init__(self):
+            super().__init__(figsize=(9.8, 8.4))
+            self.figure.clear()
+            grid = self.figure.add_gridspec(
+                2, 2, height_ratios=[1.25, 1.0], width_ratios=[2.2, 1.0]
+            )
+            self.ax3d = self.figure.add_subplot(grid[0, 0], projection="3d")
+            self.ax_phasor = self.figure.add_subplot(grid[0, 1])
+            self.ax = self.figure.add_subplot(grid[1, :])
+
+        def draw_waveforms(self, state: TLState, azimuth_deg: float = -34.0):
+            ax3d = self.ax3d
+            axp = self.ax_phasor
+            ax2d = self.ax
+            ax3d.clear()
+            axp.clear()
+            ax2d.clear()
+
+            z = np.linspace(0, 2.0, 1200)
+            gamma = state.gamma_load
+            beta_z = 2 * np.pi * z
+            v_incident = np.exp(1j * beta_z)
+            v_reflected = gamma * np.exp(-1j * beta_z)
+            v_total = v_incident + v_reflected
+
+            v_incident_real = np.real(v_incident)
+            v_reflected_real = np.real(v_reflected)
+            v_total_real = np.real(v_total)
+            v_incident_imag = np.imag(v_incident)
+            v_reflected_imag = np.imag(v_reflected)
+            v_total_imag = np.imag(v_total)
+
+            ax3d.plot(
+                z,
+                v_incident_real,
+                v_incident_imag,
+                color="#5dade2",
+                lw=1.4,
+                label="V+",
+            )
+            ax3d.plot(
+                z,
+                v_reflected_real,
+                v_reflected_imag,
+                color="#ff6b6b",
+                lw=1.4,
+                label="V-",
+            )
+            ax3d.plot(
+                z,
+                v_total_real,
+                v_total_imag,
+                color="#f4e04d",
+                lw=1.8,
+                label="Vtotal",
+            )
+
+            pos = float(np.clip(state.distance_lambda, 0.0, 2.0))
+            idx = int(np.clip(np.searchsorted(z, pos), 0, z.size - 1))
+            ax3d.plot(
+                [pos, pos],
+                [v_total_real[idx], v_total_real[idx]],
+                [-1.05, 1.05],
+                color="#c792ea",
+                ls="--",
+                lw=1.0,
+            )
+            ax3d.scatter(
+                [pos],
+                [v_total_real[idx]],
+                [v_total_imag[idx]],
+                color="#c792ea",
+                s=38,
+                depthshade=False,
+                zorder=6,
+                label="Position",
+            )
+
+            ax3d.set_xlim(0.0, 2.0)
+            ax3d.set_ylim(-1.25, 1.25)
+            ax3d.set_zlim(-1.25, 1.25)
+            ax3d.set_xlabel("Length [λ]")
+            ax3d.set_ylabel("Real")
+            ax3d.set_zlabel("Imag")
+            ax3d.set_title("3D Voltage Trajectory")
+            ax3d.set_box_aspect((2.3, 1.2, 1.4))
+            ax3d.view_init(elev=16, azim=azimuth_deg)
+            ax3d.tick_params(colors="#000000")
+            ax3d.xaxis.label.set_color("#000000")
+            ax3d.yaxis.label.set_color("#000000")
+            ax3d.zaxis.label.set_color("#000000")
+            ax3d.title.set_color("#000000")
+            ax3d.xaxis.pane.set_facecolor((0.96, 0.96, 0.96, 1.0))
+            ax3d.yaxis.pane.set_facecolor((0.96, 0.96, 0.96, 1.0))
+            ax3d.zaxis.pane.set_facecolor((0.96, 0.96, 0.96, 1.0))
+            ax3d.grid(True, alpha=0.22)
+            ax3d.legend(
+                loc="upper left",
+                facecolor="#ffffff",
+                edgecolor="#808080",
+                labelcolor="#000000",
+                fontsize=8,
+            )
+
+            theta = np.linspace(0.0, 2.0 * np.pi, 600)
+            gamma_mag = abs(gamma)
+            axp.set_facecolor("#000000")
+            axp.plot(np.cos(theta), np.sin(theta), color="#5dade2", lw=1.5, alpha=0.9, label="|V+|")
+            if gamma_mag > 1e-9:
+                axp.plot(
+                    gamma_mag * np.cos(theta),
+                    gamma_mag * np.sin(theta),
+                    color="#ff6b6b",
+                    lw=1.5,
+                    alpha=0.9,
+                    label="|V-|",
+                )
+            axp.plot(v_total_real, v_total_imag, color="#f4e04d", lw=1.6, label="Vtotal locus")
+            axp.plot(
+                [0.0, v_total_real[idx]],
+                [0.0, v_total_imag[idx]],
+                color="#c792ea",
+                ls="--",
+                lw=1.0,
+            )
+            axp.scatter(
+                [v_total_real[idx]],
+                [v_total_imag[idx]],
+                color="#c792ea",
+                s=34,
+                zorder=5,
+                label="Position",
+            )
+            r_lim = 1.0 + gamma_mag + 0.15
+            axp.set_xlim(-r_lim, r_lim)
+            axp.set_ylim(-r_lim, r_lim)
+            axp.axhline(0.0, color="#f1f1f1", lw=1.1)
+            axp.axvline(0.0, color="#f1f1f1", lw=1.1)
+            axp.text(r_lim * 0.9, r_lim * 0.06, "Real", color="#f1f1f1", ha="left")
+            axp.text(r_lim * 0.05, r_lim * 0.92, "Imag", color="#f1f1f1", va="bottom")
+            axp.set_aspect("equal", adjustable="box")
+            axp.set_title("Phasor (Real/Imag)", color="#f1f1f1", fontsize=10)
+            axp.grid(True, alpha=0.18, color="#888888")
+            axp.tick_params(colors="#d7dfff", labelsize=8)
+            for spine in axp.spines.values():
+                spine.set_color("#555555")
+            axp.legend(facecolor="#101010", edgecolor="#666666", labelcolor="#f1f1f1", fontsize=8)
+
+            ax2d.set_facecolor("#171c41")
+            ax2d.tick_params(colors="#d7dfff")
+            ax2d.xaxis.label.set_color("#ecf2ff")
+            ax2d.yaxis.label.set_color("#ecf2ff")
+            ax2d.plot(z, v_incident_real, color="#5dade2", lw=1.6, label="Re{V+}")
+            ax2d.plot(z, v_reflected_real, color="#ff6b6b", lw=1.6, label="Re{V-}")
+            ax2d.plot(z, v_total_real, color="#f4e04d", lw=2.0, label="Re{Vtotal}")
+            ax2d.axvline(pos, color="#c792ea", ls="--", lw=1.3, label="Position")
+
+            vmax = 1.0 + abs(gamma)
+            vmin = 1.0 - abs(gamma)
+            ax2d.axhline(vmax, color="#ff4dd2", lw=1.1, alpha=0.9)
+            ax2d.axhline(vmin, color="#ff4dd2", lw=1.1, alpha=0.75)
+            ax2d.text(1.98, vmax + 0.03, "max", ha="right", va="bottom", color="#ff4dd2")
+            ax2d.text(1.98, vmin + 0.03, "min", ha="right", va="bottom", color="#ff4dd2")
+
+            y_lim = max(1.25, vmax + 0.2)
+            ax2d.set_xlim(0.0, 2.0)
+            ax2d.set_ylim(-y_lim, y_lim)
+            ax2d.set_xlabel("Distance from load toward generator [λ]")
+            ax2d.set_ylabel("Real")
+            ax2d.set_title("Standing Wave Voltage")
+            ax2d.grid(True, alpha=0.24, color="#8ea6ff")
+            ax2d.legend(facecolor="#121735", edgecolor="#4a5b9d", labelcolor="#eef2ff")
+
+            self.figure.patch.set_facecolor("#171c41")
+            self.draw_idle()
+
     class TLIMEWindow(QMainWindow):
         def __init__(self):
             super().__init__()
@@ -524,6 +701,13 @@ def build_tlime_window_class(np, FigureCanvasQTAgg, Figure):
                 }
                 QPushButton:checked {
                     background-color: #8d65ff;
+                }
+                QPushButton#exitButton {
+                    background-color: #b04545;
+                    border: 1px solid #d66b6b;
+                }
+                QPushButton#exitButton:hover {
+                    background-color: #cb5757;
                 }
                 QLabel#resultLabel {
                     background-color: #0d122d;
@@ -576,9 +760,9 @@ def build_tlime_window_class(np, FigureCanvasQTAgg, Figure):
             distance_group = QGroupBox("Position from load toward generator")
             dbox = QVBoxLayout(distance_group)
             self.distance_slider = QSlider(Qt.Horizontal)
-            self.distance_slider.setRange(0, 500)
+            self.distance_slider.setRange(0, 2000)
             self.distance_slider.setValue(0)
-            self.distance_spin = self._float_box(0.0, 0.0, 0.5, 4, " λ")
+            self.distance_spin = self._float_box(0.0, 0.0, 2, 4, " λ")
             self.distance_spin.setSingleStep(0.005)
             row = QHBoxLayout()
             row.addWidget(self.distance_slider)
@@ -588,6 +772,16 @@ def build_tlime_window_class(np, FigureCanvasQTAgg, Figure):
             self.animate.setCheckable(True)
             dbox.addWidget(self.animate)
             controls.addWidget(distance_group)
+
+            rotation_group = QGroupBox("3D view rotation")
+            rotation_layout = QVBoxLayout(rotation_group)
+            self.rotation_slider = QSlider(Qt.Horizontal)
+            self.rotation_slider.setRange(-180, 180)
+            self.rotation_slider.setValue(-34)
+            self.rotation_label = QLabel("Azimuth: -34°")
+            rotation_layout.addWidget(self.rotation_slider)
+            rotation_layout.addWidget(self.rotation_label)
+            controls.addWidget(rotation_group)
 
             display_group = QGroupBox("Display")
             display_layout = QVBoxLayout(display_group)
@@ -616,13 +810,18 @@ def build_tlime_window_class(np, FigureCanvasQTAgg, Figure):
             match_layout.addWidget(self.quarter_button)
             match_layout.addWidget(self.reset_button)
             controls.addWidget(match_group)
+            self.exit_button = QPushButton("Exit")
+            self.exit_button.setObjectName("exitButton")
+            controls.addWidget(self.exit_button)
             controls.addStretch(1)
 
             tabs = QTabWidget()
             self.smith = SmithChartCanvas()
             self.waves = WaveCanvas()
+            self.standing_wave_voltage = StandingWaveVoltageCanvas()
             tabs.addTab(self.smith, "Smith chart")
             tabs.addTab(self.waves, "Standing waves and Zin")
+            tabs.addTab(self.standing_wave_voltage, "Standing Wave voltage")
             splitter.addWidget(tabs)
             splitter.setStretchFactor(0, 0)
             splitter.setStretchFactor(1, 1)
@@ -637,6 +836,7 @@ def build_tlime_window_class(np, FigureCanvasQTAgg, Figure):
                 widget.valueChanged.connect(self.update_all)
             self.distance_slider.valueChanged.connect(self._slider_to_spin)
             self.distance_spin.valueChanged.connect(self._spin_to_slider)
+            self.rotation_slider.valueChanged.connect(self._rotation_slider_changed)
             self.show_vswr.toggled.connect(self.update_all)
             self.show_labels.toggled.connect(self.update_all)
             self.mode.currentIndexChanged.connect(self.update_all)
@@ -644,6 +844,7 @@ def build_tlime_window_class(np, FigureCanvasQTAgg, Figure):
             self.timer.timeout.connect(self._animation_step)
             self.quarter_button.clicked.connect(self._quarter_wave_suggestion)
             self.reset_button.clicked.connect(self._load_example)
+            self.exit_button.clicked.connect(self.close)
 
         def state(self) -> TLState:
             return TLState(
@@ -664,6 +865,10 @@ def build_tlime_window_class(np, FigureCanvasQTAgg, Figure):
             self.distance_slider.blockSignals(True)
             self.distance_slider.setValue(round(value * 1000))
             self.distance_slider.blockSignals(False)
+
+        def _rotation_slider_changed(self, value):
+            self.rotation_label.setText(f"Azimuth: {value}°")
+            self.update_all()
 
         def _toggle_animation(self, active):
             self.animate.setText("Stop animation" if active else "Animate propagation")
@@ -687,6 +892,9 @@ def build_tlime_window_class(np, FigureCanvasQTAgg, Figure):
                 return
             self.smith.draw_chart(s, self.show_vswr.isChecked(), self.show_labels.isChecked())
             self.waves.draw_waves(s)
+            self.standing_wave_voltage.draw_waveforms(
+                s, azimuth_deg=float(self.rotation_slider.value())
+            )
 
             z_norm = s.zl / s.z0
             y_load = 1 / s.zl if abs(s.zl) > 1e-12 else complex(float("inf"), 0)
